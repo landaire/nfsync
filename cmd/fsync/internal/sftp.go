@@ -217,13 +217,13 @@ func remoteMkdir(fullPath string) error {
 	}
 	defer sftp.Close()
 
-	parts := filepath.SplitList(fullPath)
+	parts := strings.Split(fullPath, string(filepath.Separator))
 	partialPath := "/"
 
 	for _, part := range parts {
 		partialPath = filepath.Join(partialPath, part)
 
-		stat, err := sftp.Stat(partialPath)
+		stat, err := sftp.Lstat(partialPath)
 		if err != nil {
 			if !os.IsNotExist(err) {
 				return err
@@ -233,8 +233,12 @@ func remoteMkdir(fullPath string) error {
 			if err := sftp.Mkdir(partialPath); err != nil {
 				return err
 			}
-		} else if !stat.IsDir() {
-			return fmt.Errorf("%s is not a directory", partialPath)
+		} else {
+			if stat.Mode()&os.ModeSymlink == os.ModeSymlink {
+				continue
+			} else if !stat.IsDir() {
+				return fmt.Errorf("%s is not a directory", partialPath)
+			}
 		}
 	}
 
