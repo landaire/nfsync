@@ -95,6 +95,9 @@ func RemoteFileManager() {
 			}()
 		case <-time.After(ConnectionTimeout):
 			// After 5 minutes of inactivity, close the connection
+			if client != nil {
+				Log.Debugln("Closing SSH connection due to inactivity")
+			}
 			CloseClient()
 		case <-RemoteFileManagerExit:
 			Log.Debugln("RemoteFileManagerExit signal received, wrapping up...")
