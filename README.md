@@ -15,7 +15,7 @@ Some notes:
 - Modifying or deleting files outside of the provided remote root directory
 is strictly disallowed. This is to prevent damage to your system in case there's
 a bug in this application
-- Deleting the remote root directory is strictly disallowed for the same reason
+- Deleting the [remote root directory](https://twitter.com/landaire/status/704577312893743104) is strictly disallowed for the same reason
 - There are probably bugs. At the time of writing there are 0 unit test
 
 ## Installation
@@ -23,16 +23,16 @@ a bug in this application
 ### Requirements
 
 - Go >= 1.5
-- [Glide](http://glide.sh/)
+- [Glide](http://glide.sh/) (recommended)
 
-### Manual Install
+### Recommended Manual Install
 
 ```
 cd $GOPATH/src
 mkdir -p gitlab.com/landaire/fsync
 git clone https://gitlab.com/landaire/fsync.git
 glide install
-go install gitlab.com/landaire/fsync
+go install gitlab.com/landaire/fsync/cmd/fsync
 ```
 
 This is a little more painful than a normal Go application install, but that's
@@ -42,6 +42,14 @@ an `install` command similar to `go install` which:
 1.) Fetches the repo
 2.) Fetches and installs dependencies
 3.) Installs the application
+
+### IDGAF Just Install It
+
+```
+go get -u gitlab.com/landaire/fsync/cmd/fsync
+```
+
+This method doesn't ensure dependency versions match, but gets it done in less steps
 
 ## Usage
 
