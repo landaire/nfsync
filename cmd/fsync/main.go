@@ -1,8 +1,13 @@
 package main
 
 import (
+	"fmt"
+	"io/ioutil"
 	"os"
 	"os/signal"
+	"strings"
+
+	"golang.org/x/crypto/ssh"
 
 	"gitlab.com/landaire/fsync/cmd/fsync/internal"
 
@@ -22,6 +27,10 @@ func main() {
 		cli.BoolFlag{
 			Name:  "verbose",
 			Usage: "Enable verbose logging",
+		},
+		cli.StringFlag{
+			Name:  "identity_file",
+			Usage: "Private key file used for authentication",
 		},
 	}
 	app.Action = watch
@@ -50,6 +59,7 @@ func watch(context *cli.Context) {
 	}
 
 	internal.SetVerbose(context.GlobalBool("verbose"))
+	setupSSHConfig(context)
 
 	log.Debug("Starting watcher goroutine")
 	go internal.Watch(watchDir)
@@ -62,10 +72,66 @@ func watch(context *cli.Context) {
 	go func() {
 		// c is only ever going to be an interrupt
 		<-c
-		internal.WatchExit <- true
-		appExit <- true
+
+		chans := []chan bool{
+			internal.WatchExit,
+			internal.RemoteFileManagerExit,
+			appExit,
+		}
+
+		for _, c := range chans {
+			c <- true
+		}
 	}()
 
 	<-appExit
 	log.Debug("Exiting")
+}
+
+func setupSSHConfig(context *cli.Context) {
+	var user, host, userAndHost string
+
+	argc := len(context.Args())
+	if argc > 1 {
+		userAndHost = context.Args()[1]
+	} else {
+		userAndHost = context.Args()[0]
+	}
+
+	parts := strings.Split(userAndHost, "@")
+	if len(parts) == 1 {
+		log.Fatalln("Invalid host")
+	}
+
+	user = parts[0]
+	host = parts[1]
+
+	authMethods := []ssh.AuthMethod{}
+
+	if ident := context.GlobalString("identity_file"); ident != "" {
+		data, err := ioutil.ReadFile(ident)
+		if err != nil {
+			log.Fatalln("Could not read ident file:", err)
+		}
+
+		signer, err := ssh.ParsePrivateKey(data)
+		if err != nil {
+			log.Fatalln("Could not parse ident file:", err)
+		}
+
+		authMethods = append(authMethods, ssh.PublicKeys(signer))
+	} else {
+		var password string
+		if items, err := fmt.Scanf("Password: %s", &password); items != 1 || err != nil {
+			log.Fatalln("Invalid password")
+		}
+
+		authMethods = append(authMethods, ssh.Password(password))
+	}
+
+	internal.Host = host
+	internal.Config = &ssh.ClientConfig{
+		User: user,
+		Auth: authMethods,
+	}
 }
