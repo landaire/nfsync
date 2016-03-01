@@ -26,21 +26,33 @@ func main() {
 	}
 	app.Action = watch
 	app.Name = "fsync"
-	app.Usage = "<local dir> user@remote-host:/remote/directory"
+	app.Usage = `[<local dir>] user@remote-host:/remote/directory
+	If no local dir is supplied, the working directory is assumed
+	`
 
 	app.Run(os.Args)
 }
 
 func watch(context *cli.Context) {
-	if len(context.Args()) < 2 {
+	argc := len(context.Args())
+	if argc < 1 || argc > 2 {
 		context.App.Command("help").Run(context)
 		return
+	}
+
+	watchDir, err := os.Getwd()
+	if err != nil {
+		internal.Log.Fatalln(err)
+	}
+
+	if argc > 1 {
+		watchDir = context.Args()[0]
 	}
 
 	internal.SetVerbose(context.GlobalBool("verbose"))
 
 	log.Debug("Starting watcher goroutine")
-	go internal.Watch(context.Args()[0])
+	go internal.Watch(watchDir)
 	go internal.RemoteFileManager()
 
 	appExit := make(chan bool)
