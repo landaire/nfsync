@@ -9,3 +9,4 @@ import:
   - ssh/agent
 - package: gopkg.in/fsnotify.v1
 - package: github.com/landaire/recwatch
+- package: github.com/howeyc/gopass

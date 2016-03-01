@@ -15,6 +15,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
+	"github.com/howeyc/gopass"
 )
 
 var (
@@ -140,15 +141,9 @@ func setupSSHConfig(context *cli.Context) {
 		}
 
 		authMethods = append(authMethods, ssh.PublicKeys(signer))
-	} else if context.GlobalBool("password") {
-		log.Debugln("Using password auth")
-		var password string
-		if items, err := fmt.Scanf("Password: %s", &password); items != 1 || err != nil {
-			log.Fatalln("Invalid password")
-		}
-
-		authMethods = append(authMethods, ssh.Password(password))
 	}
+
+	authMethods = append(authMethods, ssh.KeyboardInteractive(interactiveAuth))
 
 	internal.RemoteRoot = startDir
 	internal.Host = host
@@ -172,4 +167,36 @@ func sshAgent() ssh.AuthMethod {
 	}
 
 	return nil
+}
+
+func interactiveAuth(user, instruction string, questions []string, echos []bool) (answers []string, err error) {
+	log.Debugln("Using interactive auth")
+
+	if user != "" {
+		fmt.Println(user)
+	}
+	if instruction != "" {
+		fmt.Println(instruction)
+	}
+
+	for i, question := range questions {
+		var answer string
+		fmt.Print(question)
+
+		if echos[i] {
+			fmt.Scanln("%s", &answer)
+		} else {
+			password, err := gopass.GetPasswd()
+
+			if err != nil {
+				return answers, err
+			}
+
+			answer = string(password)
+		}
+
+		answers = append(answers, answer)
+	}
+
+	return
 }
