@@ -1,5 +1,5 @@
-hash: 676ee00561c5efc2f411be00537fd4633b9de26a2dbf6c5e1556d7f69bd2cdc1
-updated: 2016-02-29T22:21:47.519260392-08:00
+hash: 7d5d31b7be7264470bd0392bd3d752e065ce020e7821bdf1da20d28bf3b7ab3c
+updated: 2016-02-29T23:12:46.460970339-08:00
 imports:
 - name: github.com/codegangsta/cli
   version: a2943485b110df8842045ae0600047f88a3a56a1
@@ -9,6 +9,8 @@ imports:
   version: e84cc8c755ca39b7b64f510fe1fffc1b51f210a5
 - name: github.com/Sirupsen/logrus
   version: 219c8cb75c258c552e999735be6df753ffc7afdc
+- name: github.com/xyproto/recwatch
+  version: 3c0912279ade9b2d2a2a9c07cfbd41d7f5974393
 - name: golang.org/x/crypto
   version: 5dc8cb4b8a8eb076cbb5a06bc3b8682c15bdbbd3
   subpackages:
