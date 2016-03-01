@@ -8,4 +8,4 @@ import:
   - ssh
   - ssh/agent
 - package: gopkg.in/fsnotify.v1
-- package: github.com/xyproto/recwatch
+- package: github.com/landaire/recwatch
