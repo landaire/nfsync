@@ -16,6 +16,7 @@ Some notes:
 is strictly disallowed. This is to prevent damage to your system in case there's
 a bug in this application
 - Deleting the [remote root directory](https://twitter.com/landaire/status/704577312893743104) is strictly disallowed for the same reason
+- There might be duplicate events which make an operation execute twice
 - There are probably bugs. At the time of writing there are 0 unit test
 
 ## Installation
@@ -54,11 +55,7 @@ This method doesn't ensure dependency versions match, but gets it done in less s
 
 ## Usage
 
-Usage is fairly straightforward. At the time of writing only public key-based
-authentication is supported, but interactive auth will be added in the near
-future (this is simple, just requires actually doing it).
-
-To watch changes from the current working directory:
+Usage is fairly straightforward. To watch changes from the current working directory:
 
 `nfsync -i ~/.ssh/your_key.pem user@host:/root/directory`
 
