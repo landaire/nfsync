@@ -11,7 +11,7 @@ import (
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
 
-	"gitlab.com/landaire/fsync/cmd/fsync/internal"
+	"gitlab.com/landaire/nfsync/cmd/nfsync/internal"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/codegangsta/cli"
@@ -40,7 +40,7 @@ func main() {
 		},
 	}
 	app.Action = watch
-	app.Name = "fsync"
+	app.Name = "nfsync"
 	app.Usage = `[<local dir>] user@remote-host:/remote/directory
 	If no local dir is supplied, the working directory is assumed
 	`

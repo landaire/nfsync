@@ -1,6 +1,6 @@
-# fsync - synchronize local files to a remote host
+# nfsync - synchronize local files to a remote host
 
-fsync is a utility which watches the provided directory for changes and
+nfsync is a utility which watches the provided directory for changes and
 mirrors said changes to the remote server. Currently the following operations
 are supported:
 
@@ -30,10 +30,10 @@ a bug in this application
 ```
 mkdir -p $GOPATH/gitlab.com/landaire/
 cd $GOPATH/gitlab.com/landaire
-git clone https://gitlab.com/landaire/fsync.git
-cd fsync
+git clone https://gitlab.com/landaire/nfsync.git
+cd nfsync
 glide install
-go install gitlab.com/landaire/fsync/cmd/fsync
+go install gitlab.com/landaire/nfsync/cmd/nfsync
 ```
 
 This is a little more painful than a normal Go application install, but that's
@@ -47,7 +47,7 @@ an `install` command similar to `go install` which:
 ### IDGAF Just Install It
 
 ```
-go get -u gitlab.com/landaire/fsync/cmd/fsync
+go get -u gitlab.com/landaire/nfsync/cmd/nfsync
 ```
 
 This method doesn't ensure dependency versions match, but gets it done in less steps
@@ -60,8 +60,8 @@ future (this is simple, just requires actually doing it).
 
 To watch changes from the current working directory:
 
-`fsync -i ~/.ssh/your_key.pem user@host:/root/directory`
+`nfsync -i ~/.ssh/your_key.pem user@host:/root/directory`
 
 This is equivalent to:
 
-`fsync -i ~/.ssh/your_key.pem . user@host:/root/directory`
+`nfsync -i ~/.ssh/your_key.pem . user@host:/root/directory`
