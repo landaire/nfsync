@@ -3,11 +3,13 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/signal"
 	"strings"
 
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/agent"
 
 	"gitlab.com/landaire/fsync/cmd/fsync/internal"
 
@@ -29,8 +31,12 @@ func main() {
 			Usage: "Enable verbose logging",
 		},
 		cli.StringFlag{
-			Name:  "identity_file",
+			Name:  "identity_file, i",
 			Usage: "Private key file used for authentication",
+		},
+		cli.BoolFlag{
+			Name:  "password",
+			Usage: "Use password authentication",
 		},
 	}
 	app.Action = watch
@@ -85,6 +91,8 @@ func watch(context *cli.Context) {
 	}()
 
 	<-appExit
+	<-internal.RemoteFileManagerExit
+	<-internal.WatchExit
 	log.Debug("Exiting")
 }
 
@@ -98,17 +106,30 @@ func setupSSHConfig(context *cli.Context) {
 		userAndHost = context.Args()[0]
 	}
 
-	parts := strings.Split(userAndHost, "@")
-	if len(parts) == 1 {
+	hostParts := strings.Split(userAndHost, "@")
+	if len(hostParts) != 2 {
 		log.Fatalln("Invalid host")
 	}
 
-	user = parts[0]
-	host = parts[1]
+	user = hostParts[0]
+
+	hostDirParts := strings.Split(hostParts[1], ":")
+	if len(hostDirParts) != 2 {
+		log.Fatalln("Invalid remote dir specified")
+	}
+
+	host = hostDirParts[0]
+	startDir := hostDirParts[1]
 
 	authMethods := []ssh.AuthMethod{}
 
+	if sshAgentAuthMethod := sshAgent(); sshAgentAuthMethod != nil {
+		log.Debugln("Adding ssh agent auth")
+		//authMethods = append(authMethods, sshAgentAuthMethod)
+	}
+
 	if ident := context.GlobalString("identity_file"); ident != "" {
+		log.Debugln("Using identity file:", ident)
 		data, err := ioutil.ReadFile(ident)
 		if err != nil {
 			log.Fatalln("Could not read ident file:", err)
@@ -120,7 +141,8 @@ func setupSSHConfig(context *cli.Context) {
 		}
 
 		authMethods = append(authMethods, ssh.PublicKeys(signer))
-	} else {
+	} else if context.GlobalBool("password") {
+		log.Debugln("Using password auth")
 		var password string
 		if items, err := fmt.Scanf("Password: %s", &password); items != 1 || err != nil {
 			log.Fatalln("Invalid password")
@@ -129,9 +151,26 @@ func setupSSHConfig(context *cli.Context) {
 		authMethods = append(authMethods, ssh.Password(password))
 	}
 
+	internal.RemoteRoot = startDir
 	internal.Host = host
 	internal.Config = &ssh.ClientConfig{
 		User: user,
 		Auth: authMethods,
 	}
+
+	log.Debugln("RemoteRoot:", startDir)
+	log.Debugln("Host:", host)
+	log.Debugln("ssh config:", internal.Config)
+
+	if err := internal.OpenClient(); err != nil {
+		log.Fatalln(err)
+	}
+}
+
+func sshAgent() ssh.AuthMethod {
+	if sshAgent, err := net.Dial("unix", os.Getenv("SSH_AUTH_SOCK")); err == nil {
+		return ssh.PublicKeysCallback(agent.NewClient(sshAgent).Signers)
+	}
+
+	return nil
 }
