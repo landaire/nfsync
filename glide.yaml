@@ -1,4 +1,4 @@
-package: gitlab.com/landaire/fsync
+package: gitlab.com/landaire/nfsync
 import:
 - package: github.com/Sirupsen/logrus
 - package: github.com/codegangsta/cli
