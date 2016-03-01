@@ -28,9 +28,10 @@ a bug in this application
 ### Recommended Manual Install
 
 ```
-cd $GOPATH/src
-mkdir -p gitlab.com/landaire/fsync
+mkdir -p $GOPATH/gitlab.com/landaire/
+cd $GOPATH/gitlab.com/landaire
 git clone https://gitlab.com/landaire/fsync.git
+cd fsync
 glide install
 go install gitlab.com/landaire/fsync/cmd/fsync
 ```
