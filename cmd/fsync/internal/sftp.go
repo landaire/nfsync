@@ -2,7 +2,10 @@ package internal
 
 import (
 	"fmt"
-	"path"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/pkg/sftp"
@@ -52,7 +55,25 @@ func RemoteFileManager() {
 
 			Log.Infoln("Modified file:", file)
 
-			//pendingOperations <- true
+			pendingOperations <- true
+			go func() {
+				defer func() { <-pendingOperations }()
+				stat, err := os.Stat(file)
+				if err != nil {
+					Log.Errorln(err)
+					return
+				}
+
+				if stat.IsDir() {
+					err = remoteMkdir(filepath.Join(RemoteRoot, file))
+				} else {
+					err = uploadFile(file)
+				}
+
+				if err != nil {
+					Log.Errorln(err)
+				}
+			}()
 		case file := <-DeletedFiles:
 			if err := OpenClient(); err != nil {
 				Log.Errorf("Error occurred while opening connection: %v\n", err)
@@ -62,7 +83,12 @@ func RemoteFileManager() {
 			Log.Infoln("Deleted file:", file)
 
 			pendingOperations <- true
-			deleteRemoteFile(file)
+			go func() {
+				defer func() { <-pendingOperations }()
+				if err := deleteRemoteFile(file); err != nil {
+					Log.Errorln(err)
+				}
+			}()
 		case <-time.After(ConnectionTimeout):
 			// After 5 minutes of inactivity, close the connection
 			CloseClient()
@@ -113,16 +139,117 @@ func OpenClient() (err error) {
 }
 
 func deleteRemoteFile(name string) error {
-	defer func() { <-pendingOperations }()
-
 	sftp, err := sftp.NewClient(client)
 	if err != nil {
 		return err
 	}
+	defer sftp.Close()
 
-	fullPath := path.Join(RemoteRoot, name)
+	fullPath := filepath.Join(RemoteRoot, name)
 
 	Log.Infoln("Deleting", fullPath)
+	remoteInfo, err := sftp.Stat(fullPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+
+		return err
+	}
+
+	localInfo, err := os.Stat(name)
+	if err != nil {
+		return err
+	}
+
+	if localInfo.IsDir() != remoteInfo.IsDir() {
+		local := "is"
+		remote := "is not"
+		if !localInfo.IsDir() {
+			local = "is not"
+			remote = "is"
+		}
+
+		return fmt.Errorf("%s %s a directory and the remote file %s -- delete canceled",
+			name,
+			local,
+			remote)
+	}
 
 	return sftp.Remove(fullPath)
+}
+
+func uploadFile(name string) error {
+	sftp, err := sftp.NewClient(client)
+	if err != nil {
+		return err
+	}
+	defer sftp.Close()
+
+	fullPath := filepath.Join(RemoteRoot, name)
+
+	dir, _ := filepath.Split(fullPath)
+	if err := remoteMkdir(dir); err != nil {
+		return err
+	}
+
+	Log.Infof("Uploading %s to %s\n", name, fullPath)
+
+	remoteFile, err := sftp.Create(fullPath)
+	if err != nil {
+		return err
+	}
+	defer remoteFile.Close()
+
+	localFile, err := os.Open(name)
+	defer localFile.Close()
+
+	written, err := io.Copy(remoteFile, localFile)
+	Log.Infof("Wrote %d bytes\n", written)
+
+	return err
+}
+
+func remoteMkdir(fullPath string) error {
+	sftp, err := sftp.NewClient(client)
+	if err != nil {
+		return err
+	}
+	defer sftp.Close()
+
+	parts := filepath.SplitList(fullPath)
+	partialPath := "/"
+
+	for _, part := range parts {
+		partialPath = filepath.Join(partialPath, part)
+
+		stat, err := sftp.Stat(partialPath)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				return err
+			}
+
+			Log.Infoln("Creating directory", partialPath)
+			if err := sftp.Mkdir(partialPath); err != nil {
+				return err
+			}
+		} else if !stat.IsDir() {
+			return fmt.Errorf("%s is not a directory", partialPath)
+		}
+	}
+
+	return nil
+}
+
+func checkPath(fullPath string) error {
+	absolute, err := filepath.Abs(fullPath)
+	if err != nil {
+		return err
+	}
+
+	if !strings.HasPrefix(absolute, RemoteRoot) {
+		return fmt.Errorf("Path %s is outside RemoteRoot", absolute)
+	}
+
+	return nil
 }
