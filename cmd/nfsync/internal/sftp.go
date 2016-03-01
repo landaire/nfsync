@@ -65,7 +65,11 @@ func RemoteFileManager() {
 				}
 
 				if stat.IsDir() {
-					err = remoteMkdir(filepath.Join(RemoteRoot, file))
+					var path string
+					path, err = remotePath(file)
+					if err == nil {
+						err = remoteMkdir(path)
+					}
 				} else {
 					err = uploadFile(file)
 				}
@@ -145,7 +149,10 @@ func deleteRemoteFile(name string) error {
 	}
 	defer sftp.Close()
 
-	fullPath := filepath.Join(RemoteRoot, name)
+	fullPath, err := remotePath(name)
+	if err != nil {
+		return err
+	}
 
 	if err := checkPath(fullPath); err != nil {
 		return err
@@ -190,7 +197,10 @@ func uploadFile(name string) error {
 	}
 	defer sftp.Close()
 
-	fullPath := filepath.Join(RemoteRoot, name)
+	fullPath, err := remotePath(name)
+	if err != nil {
+		return err
+	}
 
 	dir, _ := filepath.Split(fullPath)
 	if err := remoteMkdir(dir); err != nil {
@@ -264,4 +274,13 @@ func checkPath(fullPath string) error {
 	}
 
 	return nil
+}
+
+func remotePath(localFullPath string) (string, error) {
+	relativePath, err := pathRelativeToWatchRoot(localFullPath)
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(RemoteRoot, relativePath), nil
 }

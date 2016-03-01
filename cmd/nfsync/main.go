@@ -65,8 +65,9 @@ func watch(context *cli.Context) {
 	internal.SetVerbose(context.GlobalBool("verbose"))
 	setupSSHConfig(context)
 
-	log.Debug("Starting watcher goroutine")
+	log.Debugln("Starting watcher goroutine with watchdir", watchDir)
 	go internal.Watch(watchDir)
+	log.Debugln("Starting remote file manager goroutine")
 	go internal.RemoteFileManager()
 
 	appExit := make(chan bool)

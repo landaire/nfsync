@@ -2,6 +2,7 @@ package internal
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/landaire/recwatch"
@@ -10,6 +11,7 @@ import (
 
 var (
 	WatchExit chan bool
+	watchRoot string
 )
 
 func init() {
@@ -25,6 +27,8 @@ func Watch(path string) {
 		Log.Fatalf("Could not initialize fsnotify watcher: %v\n", err)
 	}
 
+	watchRoot = path
+
 	for {
 		select {
 		case event := <-watcher.Events:
@@ -34,30 +38,36 @@ func Watch(path string) {
 				continue
 			}
 
+			path, err := filePathFromEvent(&event)
+			if err != nil {
+				Log.Errorln(err)
+				continue
+			}
+
 			if event.Op&fsnotify.Write == fsnotify.Write {
 				Log.Debugln("Write event received:", event.Name)
-				ModifiedFiles <- event.Name
+				ModifiedFiles <- path
 			} else if event.Op&fsnotify.Remove == fsnotify.Remove {
 				Log.Debugln("Remove event received:", event.Name)
-				DeletedFiles <- event.Name
+				DeletedFiles <- path
 			} else if event.Op&fsnotify.Create == fsnotify.Create {
 				Log.Debugln("Create event received:", event.Name)
-				ModifiedFiles <- event.Name
+				ModifiedFiles <- path
 
-				stat, err := os.Stat(event.Name)
+				stat, err := os.Stat(path)
 				if err != nil {
 					Log.Errorln(err)
 					continue
 				}
 
 				if stat.IsDir() {
-					if err := watcher.Add(event.Name); err != nil {
+					if err := watcher.Add(path); err != nil {
 						Log.Debugln("Couldn't watch folder:", err)
 					}
 				}
 			} else if event.Op&fsnotify.Rename == fsnotify.Rename {
 				Log.Debugln("Rename event received:", event.Name)
-				DeletedFiles <- event.Name
+				DeletedFiles <- path
 			}
 		case <-WatchExit:
 			Log.Debugln("WatchExit signal received -- shutting down watcher")
@@ -72,4 +82,20 @@ _cleanup:
 
 	Log.Debugln("Exiting Watcher")
 	WatchExit <- true
+}
+
+func pathRelativeToWatchRoot(path string) (string, error) {
+	return filepath.Rel(watchRoot, path)
+}
+
+func filePathFromEvent(event *fsnotify.Event) (path string, err error) {
+	defer func() { path = filepath.Clean(path) }()
+
+	if filepath.IsAbs(event.Name) {
+		path = event.Name
+		return
+	}
+
+	path, err = filepath.Abs(event.Name)
+	return
 }
