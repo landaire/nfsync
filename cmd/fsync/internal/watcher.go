@@ -33,10 +33,11 @@ func Watch(path string) {
 			}
 		case <-WatchExit:
 			Log.Debugln("WatchExit signal received -- shutting down watcher")
-			return
+			goto _cleanup
 		}
 	}
 
+_cleanup:
 	if err := watcher.Close(); err != nil {
 		Log.Errorln("Error shutting down watcher:", err)
 	}

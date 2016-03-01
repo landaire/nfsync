@@ -16,17 +16,19 @@ const (
 )
 
 var (
-	RemoteRoot    string
-	Host          string
-	Config        *ssh.ClientConfig
-	ModifiedFiles chan string
-	DeletedFiles  chan string
-	client        *ssh.Client
+	RemoteRoot            string
+	Host                  string
+	Config                *ssh.ClientConfig
+	ModifiedFiles         chan string
+	DeletedFiles          chan string
+	RemoteFileManagerExit chan bool
+	client                *ssh.Client
 )
 
 func init() {
 	ModifiedFiles = make(chan string, FilesBuffer)
 	DeletedFiles = make(chan string, FilesBuffer)
+	RemoteFileManagerExit = make(chan bool)
 }
 
 // RemoteFileManager manages files on the server. This function handles the
@@ -39,13 +41,21 @@ func RemoteFileManager() {
 				Log.Errorf("Error occurred while opening connection: %v\n", err)
 			}
 
-			fmt.Println(file)
+			Log.Infoln("Modified file:", file)
 
 		case <-time.After(ConnectionTimeout):
 			// After 5 minutes of inactivity, close the connection
 			closeClient()
+		case <-RemoteFileManagerExit:
+			Log.Debugln("RemoteFileManagerExit signal received, wrapping up...")
+			goto _cleanup
 		}
 	}
+
+_cleanup:
+	closeClient()
+	close(ModifiedFiles)
+	close(DeletedFiles)
 }
 
 func closeClient() {
