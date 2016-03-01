@@ -147,6 +147,10 @@ func deleteRemoteFile(name string) error {
 
 	fullPath := filepath.Join(RemoteRoot, name)
 
+	if err := checkPath(fullPath); err != nil {
+		return err
+	}
+
 	Log.Infoln("Deleting", fullPath)
 	remoteInfo, err := sftp.Stat(fullPath)
 	if err != nil {
@@ -253,6 +257,10 @@ func checkPath(fullPath string) error {
 
 	if !strings.HasPrefix(absolute, RemoteRoot) {
 		return fmt.Errorf("Path %s is outside RemoteRoot", absolute)
+	}
+
+	if fullPath == RemoteRoot {
+		return fmt.Errorf("%s is equal to RemoteRoot -- not deleting", fullPath)
 	}
 
 	return nil
