@@ -41,9 +41,7 @@ func main() {
 	}
 	app.Action = watch
 	app.Name = "nfsync"
-	app.Usage = `[<local dir>] user@remote-host:/remote/directory
-	If no local dir is supplied, the working directory is assumed
-	`
+	app.Usage = "sync local file system changes with a remote server"
 
 	app.Run(os.Args)
 }
